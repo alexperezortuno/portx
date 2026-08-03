@@ -8,9 +8,39 @@ import (
 )
 
 type Config struct {
-	Tunnels  []TunnelConfig `mapstructure:"tunnels"`
-	Provider string         `mapstructure:"provider"`
-	LogLevel string         `mapstructure:"log_level"`
+	Version   int                       `mapstructure:"version"`
+	Provider  ProviderConfig            `mapstructure:"provider"`
+	Storage   StorageConfig             `mapstructure:"storage"`
+	Services  map[string]ServiceConfig  `mapstructure:"services"`
+	Providers map[string]ProviderConfig `mapstructure:"providers"`
+	LogLevel  string                    `mapstructure:"log_level"`
+}
+
+type ProviderConfig struct {
+	Default string `mapstructure:"default"`
+}
+
+type StorageConfig struct {
+	Path string `mapstructure:"path"`
+}
+
+type ServiceConfig struct {
+	Name     string `mapstructure:"name"`
+	Port     int    `mapstructure:"port"`
+	Protocol string `mapstructure:"protocol"`
+	Host     string `mapstructure:"host"`
+}
+
+func (s *ServiceConfig) LocalAddr() string {
+	host := s.Host
+	if host == "" {
+		host = "localhost"
+	}
+	return fmt.Sprintf("%s:%d", host, s.Port)
+}
+
+type ProviderSettings struct {
+	Enabled bool `mapstructure:"enabled"`
 }
 
 type TunnelConfig struct {
@@ -74,12 +104,22 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("invalid log_level: %s", c.LogLevel)
 		}
 	}
-	for i, t := range c.Tunnels {
-		if err := t.Validate(); err != nil {
-			return fmt.Errorf("tunnel[%d]: %w", i, err)
-		}
-	}
 	return nil
+}
+
+func (c *Config) DefaultProvider() string {
+	if c.Provider.Default != "" {
+		return c.Provider.Default
+	}
+	return "portxd"
+}
+
+func (c *Config) GetService(name string) (*ServiceConfig, bool) {
+	if c.Services == nil {
+		return nil, false
+	}
+	svc, ok := c.Services[name]
+	return &svc, ok
 }
 
 func (t *TunnelConfig) Validate() error {
