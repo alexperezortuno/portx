@@ -7,6 +7,7 @@ import (
 	"github.com/alexperezortuno/portx/internal/provider"
 	"github.com/alexperezortuno/portx/internal/provider/portxd"
 	"github.com/alexperezortuno/portx/internal/provider/ssh"
+	"github.com/alexperezortuno/portx/internal/sshutil"
 	"github.com/spf13/cobra"
 )
 
@@ -19,6 +20,7 @@ type ExposeOptions struct {
 	SSHPort     int
 	SSHPassword string
 	SSHPKey     string
+	SSHUseAgent bool
 	PortXDPort  int
 }
 
@@ -30,7 +32,16 @@ func NewExposeCommand() *cobra.Command {
 		Long: `Expose a local service to the internet through a tunnel provider.
 
 Examples:
-  portx expose --provider ssh --ssh-user tunnel --ssh-host example.com --local-port 8080
+  # SSH tunnel with password
+  portx expose --provider ssh --ssh-user tunnel --ssh-host example.com --ssh-password "secret" --local-port 8080
+
+  # SSH tunnel with private key
+  portx expose --provider ssh --ssh-user tunnel --ssh-host example.com --ssh-private-key "$(cat ~/.ssh/id_ed25519)" --local-port 8080
+
+  # SSH tunnel with SSH agent (uses keys from ssh-agent)
+  portx expose --provider ssh --ssh-user tunnel --ssh-host example.com --ssh-use-agent --local-port 8080
+
+  # PortXD local tunnel
   portx expose --provider portxd --local-port 8080`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runExpose(cmd, opts)
@@ -44,7 +55,8 @@ Examples:
 	cmd.Flags().StringVar(&opts.SSHHost, "ssh-host", "", "SSH server host")
 	cmd.Flags().IntVar(&opts.SSHPort, "ssh-port", 22, "SSH server port")
 	cmd.Flags().StringVar(&opts.SSHPassword, "ssh-password", "", "SSH password")
-	cmd.Flags().StringVar(&opts.SSHPKey, "ssh-private-key", "", "SSH private key content")
+	cmd.Flags().StringVar(&opts.SSHPKey, "ssh-private-key", "", "SSH private key content (PEM format)")
+	cmd.Flags().BoolVar(&opts.SSHUseAgent, "ssh-use-agent", false, "Use SSH agent for authentication (reads SSH_AUTH_SOCK)")
 	cmd.Flags().IntVar(&opts.PortXDPort, "portxd-port", 7222, "PortXD server port")
 
 	err := cmd.MarkFlagRequired("provider")
@@ -64,7 +76,6 @@ func runExpose(cmd *cobra.Command, opts *ExposeOptions) error {
 	ctx := cmd.Context()
 	logger := slog.Default()
 	registry := GetRegistry(ctx)
-	manager := GetManager(ctx)
 
 	if !provider.IsKnown(opts.Provider) {
 		return fmt.Errorf("unknown provider %q, known providers: %v", opts.Provider, provider.KnownProviders())
@@ -84,14 +95,14 @@ func runExpose(cmd *cobra.Command, opts *ExposeOptions) error {
 		if opts.SSHUser == "" || opts.SSHHost == "" {
 			return fmt.Errorf("ssh-user and ssh-host are required for SSH provider")
 		}
-		cfg := ssh.SSHConfig{
+		cfg := sshutil.Config{
 			User:       opts.SSHUser,
 			Host:       opts.SSHHost,
 			Port:       opts.SSHPort,
 			Password:   opts.SSHPassword,
 			PrivateKey: opts.SSHPKey,
 			RemoteAddr: opts.RemoteAddr,
-			LocalAddr:  localAddr,
+			UseAgent:   opts.SSHUseAgent,
 		}
 		p = ssh.New("ssh", cfg)
 
@@ -110,6 +121,7 @@ func runExpose(cmd *cobra.Command, opts *ExposeOptions) error {
 		return fmt.Errorf("registering provider: %w", err)
 	}
 
+	manager := GetManager(ctx)
 	tunnelCfg := provider.TunnelConfig{
 		LocalAddr:  localAddr,
 		RemoteAddr: opts.RemoteAddr,

@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/alexperezortuno/portx/internal/provider"
+	"github.com/alexperezortuno/portx/internal/sshutil"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNew(t *testing.T) {
-	cfg := SSHConfig{
+	cfg := sshutil.Config{
 		User: "test",
 		Host: "example.com",
 		Port: 22,
@@ -21,12 +22,12 @@ func TestNew(t *testing.T) {
 }
 
 func TestSSHProvider_Name(t *testing.T) {
-	p := New("my-ssh", SSHConfig{})
+	p := New("my-ssh", sshutil.Config{})
 	assert.Equal(t, "my-ssh", p.Name())
 }
 
 func TestSSHProvider_Status(t *testing.T) {
-	p := New("test", SSHConfig{})
+	p := New("test", sshutil.Config{})
 
 	status, err := p.Status(context.Background())
 	assert.NoError(t, err)
@@ -34,7 +35,7 @@ func TestSSHProvider_Status(t *testing.T) {
 }
 
 func TestSSHProvider_StartWithoutAuth(t *testing.T) {
-	p := New("test", SSHConfig{
+	p := New("test", sshutil.Config{
 		User: "test",
 		Host: "example.com",
 		Port: 22,
@@ -62,7 +63,7 @@ func TestParseHostAddr(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.addr, func(t *testing.T) {
-			net, addr, err := parseHostAddr(tt.addr)
+			net, addr, err := sshutil.ParseHostAddr(tt.addr)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -74,7 +75,7 @@ func TestParseHostAddr(t *testing.T) {
 	}
 }
 
-func TestReverseForward_Stop(t *testing.T) {
-	f := &reverseForward{}
-	f.stop()
+func TestForward_Stop(t *testing.T) {
+	f := &sshutil.Forward{}
+	f.Stop()
 }

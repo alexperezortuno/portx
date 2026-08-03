@@ -22,9 +22,7 @@ Provider-agnostic tunneling platform written in Go.
 | FRP | Planned |
 | Tailscale | Planned |
 
-## Quick Start
-
-### Install
+## Install
 
 ```bash
 go install github.com/alexperezortuno/portx@latest
@@ -36,12 +34,36 @@ Or build from source:
 go build -o portx ./cmd/portx
 ```
 
-### SSH Tunnel
+## Quick Start
+
+### SSH Tunnel (with password)
 
 ```bash
 portx expose --provider ssh \
   --ssh-user tunnel \
   --ssh-host example.com \
+  --ssh-password "your-password" \
+  --local-port 8080
+```
+
+### SSH Tunnel (with private key)
+
+```bash
+portx expose --provider ssh \
+  --ssh-user tunnel \
+  --ssh-host example.com \
+  --ssh-private-key "$(cat ~/.ssh/id_ed25519)" \
+  --local-port 8080
+```
+
+### SSH Tunnel (with SSH agent)
+
+```bash
+# Requires SSH_AUTH_SOCK to be set (e.g., from ssh-agent or keychain)
+portx expose --provider ssh \
+  --ssh-user tunnel \
+  --ssh-host example.com \
+  --ssh-use-agent \
   --local-port 8080
 ```
 
@@ -51,15 +73,20 @@ portx expose --provider ssh \
 portx expose --provider portxd --local-port 8080
 ```
 
-PortXD starts an embedded server on port 7222 by default. Connect clients to that port.
+PortXD starts an embedded server on port 7222 by default.
 
-## Usage
+## Commands
 
-```
-portx expose --provider <name> [flags]
-```
+| Command | Description |
+|---------|-------------|
+| `portx expose` | Expose a local service through a tunnel |
+| `portx list` | List active tunnels |
+| `portx stop` | Stop a tunnel or all tunnels |
+| `portx config` | Manage configuration |
+| `portx doctor` | Check system requirements |
+| `portx version` | Print version information |
 
-### Common Flags
+### Expose Flags
 
 | Flag | Description | Default |
 |------|-------------|---------|
@@ -70,16 +97,63 @@ portx expose --provider <name> [flags]
 | `--ssh-host` | SSH server host | - |
 | `--ssh-port` | SSH server port | 22 |
 | `--ssh-password` | SSH password | - |
-| `--ssh-private-key` | SSH private key content | - |
+| `--ssh-private-key` | SSH private key content (PEM format) | - |
+| `--ssh-use-agent` | Use SSH agent for authentication | false |
 | `--portxd-port` | PortXD server port | 7222 |
 
-### Commands
+### List Flags
 
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--output` | Output format (table, json) | table |
+
+### Stop Flags
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--all` | Stop all tunnels | false |
+
+### Config Subcommands
+
+| Command | Description |
+|---------|-------------|
+| `portx config view` | View resolved configuration |
+| `portx config validate [path]` | Validate configuration file |
+
+### Config View Flags
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--output` | Output format (yaml, json) | yaml |
+
+## Configuration
+
+PortX loads configuration from `~/.portx/config.yaml` or the current directory.
+
+Example `config.yaml`:
+
+```yaml
+log_level: info
+provider: ssh
+tunnels:
+  - name: web
+    provider: ssh
+    local_addr: localhost:8080
+    remote_addr: 0.0.0.0:10000
+    ssh_user: tunnel
+    ssh_host: example.com
+    ssh_port: 22
+    ssh_private_key: |
+      -----BEGIN OPENSSH PRIVATE KEY-----
+      ...your private key content...
+      -----END OPENSSH PRIVATE KEY-----
+  - name: api
+    provider: portxd
+    local_addr: localhost:3000
+    portxd_port: 7222
 ```
-portx expose    Expose a local service through a tunnel
-portx doctor    Check system requirements
-portx version   Print version information
-```
+
+**Security Note:** For SSH tunnels, prefer `--ssh-private-key` over `--ssh-password` when possible.
 
 ## Architecture
 
@@ -90,9 +164,10 @@ cmd/portx
       ├── config/        # Viper configuration
       ├── logger/        # slog wrapper
       ├── provider/      # Provider interface + registry
-      │   ├── ssh/       # SSH reverse tunnel
-      │   └── portxd/   # PortXD embedded server
+      │   ├── ssh/       # SSH provider
+      │   └── portxd/   # PortXD provider
       ├── runtime/       # Composition root
+      ├── ssh/           # Shared SSH utilities
       └── tunnel/        # Tunnel lifecycle
 ```
 
@@ -110,25 +185,6 @@ type Provider interface {
 ```
 
 Providers are registered in a central registry. The CLI never depends on concrete provider implementations.
-
-## Configuration
-
-PortX loads configuration from `~/.portx/config.yaml` or the path specified with `--config`.
-
-Example `config.yaml`:
-
-```yaml
-log_level: info
-provider: ssh
-tunnels:
-  - name: web
-    provider: ssh
-    local_addr: localhost:8080
-    remote_addr: 0.0.0.0:10000
-    ssh_user: tunnel
-    ssh_host: example.com
-    ssh_port: 22
-```
 
 ## Requirements
 
