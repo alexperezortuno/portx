@@ -154,6 +154,8 @@ providers:
 
 **Security Note:** For SSH tunnels, prefer `--ssh-use-agent` or `--ssh-private-key` over `--ssh-password` when possible.
 
+**Security Note:** For SSH tunnels, prefer `--ssh-private-key` over `--ssh-password` when possible.
+
 ## Architecture
 
 ```
