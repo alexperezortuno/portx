@@ -1,0 +1,10 @@
+bin/
+coverage.out
+.env
+graphify-out
+.agents
+skills-lock.json
+go.sum
+AGENTS.md
+ROADMAP.md
+.idea
