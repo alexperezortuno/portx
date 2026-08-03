@@ -43,7 +43,7 @@ func Load(configPath string) (*Config, error) {
 
 	if configPath == "" {
 		err := v.ReadInConfig()
-		if err != nil && !strings.Contains(err.Error(), "not found") {
+		if err != nil && !strings.Contains(strings.ToLower(err.Error()), "not found") {
 			return nil, fmt.Errorf("reading config: %w", err)
 		}
 	} else {

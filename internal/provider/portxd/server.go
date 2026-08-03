@@ -44,22 +44,12 @@ func (s *Server) serve(ctx context.Context) {
 	defer s.wg.Done()
 
 	for {
-		select {
-		case <-ctx.Done():
+		conn, err := s.listener.Accept()
+		if err != nil {
 			return
-		default:
-			conn, err := s.listener.Accept()
-			if err != nil {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-					continue
-				}
-			}
-			s.wg.Add(1)
-			go s.handleConn(ctx, conn)
 		}
+		s.wg.Add(1)
+		go s.handleConn(ctx, conn)
 	}
 }
 
@@ -100,5 +90,7 @@ func (s *Server) Stop() {
 		s.listener.Close()
 	}
 	s.wg.Wait()
-	s.logger.Info("PortXD server stopped")
+	if s.logger != nil {
+		s.logger.Info("PortXD server stopped")
+	}
 }

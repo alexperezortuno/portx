@@ -1,14 +1,12 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 
 	"github.com/alexperezortuno/portx/internal/provider"
 	"github.com/alexperezortuno/portx/internal/provider/portxd"
 	"github.com/alexperezortuno/portx/internal/provider/ssh"
-	"github.com/alexperezortuno/portx/internal/tunnel"
 	"github.com/spf13/cobra"
 )
 
@@ -49,17 +47,24 @@ Examples:
 	cmd.Flags().StringVar(&opts.SSHPKey, "ssh-private-key", "", "SSH private key content")
 	cmd.Flags().IntVar(&opts.PortXDPort, "portxd-port", 7222, "PortXD server port")
 
-	cmd.MarkFlagRequired("provider")
-	cmd.MarkFlagRequired("local-port")
+	err := cmd.MarkFlagRequired("provider")
+	if err != nil {
+		return nil
+	}
+
+	err = cmd.MarkFlagRequired("local-port")
+	if err != nil {
+		return nil
+	}
 
 	return cmd
 }
 
 func runExpose(cmd *cobra.Command, opts *ExposeOptions) error {
-	ctx := context.Background()
+	ctx := cmd.Context()
 	logger := slog.Default()
-	registry := provider.NewRegistry()
-	manager := tunnel.NewManager()
+	registry := GetRegistry(ctx)
+	manager := GetManager(ctx)
 
 	if !provider.IsKnown(opts.Provider) {
 		return fmt.Errorf("unknown provider %q, known providers: %v", opts.Provider, provider.KnownProviders())
