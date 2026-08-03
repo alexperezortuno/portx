@@ -59,8 +59,15 @@ Examples:
 	cmd.Flags().BoolVar(&opts.SSHUseAgent, "ssh-use-agent", false, "Use SSH agent for authentication (reads SSH_AUTH_SOCK)")
 	cmd.Flags().IntVar(&opts.PortXDPort, "portxd-port", 7222, "PortXD server port")
 
-	cmd.MarkFlagRequired("provider")
-	cmd.MarkFlagRequired("local-port")
+	err := cmd.MarkFlagRequired("provider")
+	if err != nil {
+		return nil
+	}
+
+	err = cmd.MarkFlagRequired("local-port")
+	if err != nil {
+		return nil
+	}
 
 	return cmd
 }
