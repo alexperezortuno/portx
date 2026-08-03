@@ -1,0 +1,35 @@
+version: 2
+project_name: portx
+builds:
+  - id: portx
+    main: ./cmd/portx
+    binary: portx
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/alexperezortuno/portx/internal/version.Version={{ .Version }}
+      - -X github.com/alexperezortuno/portx/internal/version.Commit={{ .Commit }}
+      - -X github.com/alexperezortuno/portx/internal/version.Date={{ .Date }}
+archives:
+  - format: zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+snapshot:
+  name_template: "{{ .ProjectName }}_SNAPSHOT-{{ .Commit }}"
+release:
+  github:
+    owner: alexperezortuno
+    name: portx
+  draft: false
+  prerelease: auto
