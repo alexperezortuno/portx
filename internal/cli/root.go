@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/alexperezortuno/portx/internal/cli/commands"
+	"github.com/alexperezortuno/portx/internal/config"
 	"github.com/alexperezortuno/portx/internal/provider"
 	"github.com/alexperezortuno/portx/internal/tunnel"
 	"github.com/spf13/cobra"
@@ -17,6 +18,7 @@ type RootCommand struct {
 	logger   *slog.Logger
 	registry provider.ProviderRegistry
 	manager  tunnel.TunnelManager
+	config   *config.Config
 }
 
 func NewRoot() *RootCommand {
@@ -38,30 +40,30 @@ func NewRoot() *RootCommand {
 	root.AddCommand(commands.NewVersionCommand())
 	root.AddCommand(commands.NewDoctorCommand())
 	root.AddCommand(commands.NewExposeCommand())
+	root.AddCommand(commands.NewListCommand())
+	root.AddCommand(commands.NewStopCommand())
+	root.AddCommand(commands.NewConfigCommand())
 
 	return rc
+}
+
+func (r *RootCommand) SetConfig(cfg *config.Config) {
+	r.config = cfg
 }
 
 func (r *RootCommand) Execute(args []string) error {
 	r.cmd.SetArgs(args[1:])
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, contextKey("registry"), r.registry)
-	ctx = context.WithValue(ctx, contextKey("manager"), r.manager)
+	ctx = context.WithValue(ctx, commands.RegistryKey{}, r.registry)
+	ctx = context.WithValue(ctx, commands.ManagerKey{}, r.manager)
+	if r.config != nil {
+		ctx = context.WithValue(ctx, commands.ConfigKey{}, r.config)
+	}
 
 	return r.cmd.ExecuteContext(ctx)
 }
 
-func GetRegistry(cmd *cobra.Command) provider.ProviderRegistry {
-	if v := cmd.Context().Value(contextKey("registry")); v != nil {
-		return v.(provider.ProviderRegistry)
-	}
-	return provider.NewRegistry()
-}
-
-func GetManager(cmd *cobra.Command) tunnel.TunnelManager {
-	if v := cmd.Context().Value(contextKey("manager")); v != nil {
-		return v.(tunnel.TunnelManager)
-	}
-	return tunnel.NewManager()
+func (r *RootCommand) SetContext(ctx context.Context) {
+	r.cmd.SetContext(ctx)
 }

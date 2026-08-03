@@ -86,7 +86,7 @@ func TestManager_RemoveRunning(t *testing.T) {
 	err := m.Add(context.Background(), "web", provider.TunnelConfig{}, p)
 	require.NoError(t, err)
 
-	_ = p.Start(context.Background(), provider.TunnelConfig{})
+	_ = m.StartAll(context.Background())
 
 	err = m.Remove(context.Background(), "web")
 	require.NoError(t, err)
