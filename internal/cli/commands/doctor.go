@@ -28,7 +28,10 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			fmt.Printf("  X %s: unreachable\n", host)
 		} else {
-			conn.Close()
+			err := conn.Close()
+			if err != nil {
+				return err
+			}
 			fmt.Printf("  OK %s: reachable\n", host)
 		}
 	}
