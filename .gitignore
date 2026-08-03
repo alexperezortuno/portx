@@ -8,3 +8,5 @@ go.sum
 AGENTS.md
 ROADMAP.md
 .idea
+bin/portx
+
