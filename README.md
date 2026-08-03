@@ -36,70 +36,61 @@ go build -o portx ./cmd/portx
 
 ## Quick Start
 
-### SSH Tunnel (with password)
+### Expose a Port
 
 ```bash
-portx expose --provider ssh \
-  --ssh-user tunnel \
-  --ssh-host example.com \
-  --ssh-password "your-password" \
-  --local-port 8080
+portx expose 3000
 ```
 
-### SSH Tunnel (with private key)
+This exposes local port 3000 using the default provider (portxd).
+
+### Expose with SSH
 
 ```bash
-portx expose --provider ssh \
-  --ssh-user tunnel \
-  --ssh-host example.com \
-  --ssh-private-key "$(cat ~/.ssh/id_ed25519)" \
-  --local-port 8080
+portx expose 3000 --provider ssh --ssh-host example.com --ssh-use-agent
 ```
 
-### SSH Tunnel (with SSH agent)
+### Expose a Named Service
+
+Define services in `~/.portx/config.yaml`:
 
 ```bash
-# Requires SSH_AUTH_SOCK to be set (e.g., from ssh-agent or keychain)
-portx expose --provider ssh \
-  --ssh-user tunnel \
-  --ssh-host example.com \
-  --ssh-use-agent \
-  --local-port 8080
+portx expose frontend
 ```
-
-### PortXD Local Tunnel
-
-```bash
-portx expose --provider portxd --local-port 8080
-```
-
-PortXD starts an embedded server on port 7222 by default.
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `portx expose` | Expose a local service through a tunnel |
+| `portx expose [target]` | Expose a local service through a tunnel |
 | `portx list` | List active tunnels |
 | `portx stop` | Stop a tunnel or all tunnels |
 | `portx config` | Manage configuration |
 | `portx doctor` | Check system requirements |
 | `portx version` | Print version information |
 
+### Expose
+
+Target can be:
+- **Port number**: `portx expose 3000`
+- **Named service**: `portx expose frontend`
+
 ### Expose Flags
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--provider` | Tunnel provider (ssh, portxd) | Required |
-| `--local-port` | Local service address (host:port) | Required |
-| `--tunnel-port` | Tunnel address on remote (host:port) | - |
-| `--ssh-user` | SSH username | - |
+| `target` | Port number or service name | Required |
+| `--provider` | Tunnel provider (ssh, portxd, cloudflare) | portxd |
+| `--local-addr` | Local service address (host:port) | localhost:{target} |
+| `--hostname` | Hostname for the tunnel | - |
 | `--ssh-host` | SSH server host | - |
+| `--ssh-user` | SSH username | - |
 | `--ssh-port` | SSH server port | 22 |
 | `--ssh-password` | SSH password | - |
 | `--ssh-private-key` | SSH private key content (PEM format) | - |
 | `--ssh-use-agent` | Use SSH agent for authentication | false |
 | `--portxd-port` | PortXD server port | 7222 |
+| `--port` | Local port (deprecated: use positional argument) | - |
 
 ### List Flags
 
@@ -130,30 +121,38 @@ PortXD starts an embedded server on port 7222 by default.
 
 PortX loads configuration from `~/.portx/config.yaml` or the current directory.
 
-Example `config.yaml`:
+Example `~/.portx/config.yaml`:
 
 ```yaml
-log_level: info
-provider: ssh
-tunnels:
-  - name: web
-    provider: ssh
-    local_addr: localhost:8080
-    remote_addr: 0.0.0.0:10000
-    ssh_user: tunnel
-    ssh_host: example.com
-    ssh_port: 22
-    ssh_private_key: |
-      -----BEGIN OPENSSH PRIVATE KEY-----
-      ...your private key content...
-      -----END OPENSSH PRIVATE KEY-----
-  - name: api
-    provider: portxd
-    local_addr: localhost:3000
-    portxd_port: 7222
+version: 1
+
+provider:
+  default: portxd
+
+storage:
+  path: ~/.portx
+
+services:
+  frontend:
+    port: 3000
+    protocol: http
+  api:
+    port: 8080
+    protocol: http
+  postgres:
+    port: 5432
+    protocol: tcp
+
+providers:
+  cloudflare:
+    enabled: true
+  portxd:
+    enabled: true
+  ssh:
+    enabled: true
 ```
 
-**Security Note:** For SSH tunnels, prefer `--ssh-private-key` over `--ssh-password` when possible.
+**Security Note:** For SSH tunnels, prefer `--ssh-use-agent` or `--ssh-private-key` over `--ssh-password` when possible.
 
 ## Architecture
 
@@ -161,13 +160,14 @@ tunnels:
 cmd/portx
   └── internal/
       ├── cli/           # Cobra commands
-      ├── config/        # Viper configuration
+      ├── config/        # Configuration (Viper)
       ├── logger/        # slog wrapper
       ├── provider/      # Provider interface + registry
       │   ├── ssh/       # SSH provider
       │   └── portxd/   # PortXD provider
       ├── runtime/       # Composition root
-      ├── ssh/           # Shared SSH utilities
+      ├── sshutil/       # Shared SSH utilities
+      ├── target/        # Target resolution (port, service, docker, k8s)
       └── tunnel/        # Tunnel lifecycle
 ```
 
@@ -185,6 +185,17 @@ type Provider interface {
 ```
 
 Providers are registered in a central registry. The CLI never depends on concrete provider implementations.
+
+### Target Resolution
+
+PortX resolves targets in this order:
+
+1. **Port**: If input is a number, treat as a port number
+2. **Service**: If input matches a service name in config
+3. **Docker**: If input matches a Docker container name
+4. **Compose**: If input matches a Docker Compose service name
+5. **Kubernetes**: If input matches a Kubernetes service name
+6. **Error**: Unknown target
 
 ## Requirements
 

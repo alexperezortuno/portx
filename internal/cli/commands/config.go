@@ -84,11 +84,16 @@ func runConfigValidate(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println("Valid configuration")
+	fmt.Printf("  Version: %d\n", cfg.Version)
 	fmt.Printf("  Log level: %s\n", cfg.LogLevel)
-	fmt.Printf("  Default provider: %s\n", cfg.Provider)
-	fmt.Printf("  Tunnels: %d\n", len(cfg.Tunnels))
-	for i, t := range cfg.Tunnels {
-		fmt.Printf("    [%d] %s (provider=%s, local=%s)\n", i, t.Name, t.Provider, t.LocalAddr)
+	fmt.Printf("  Default provider: %s\n", cfg.DefaultProvider())
+	fmt.Printf("  Services: %d\n", len(cfg.Services))
+	for name, svc := range cfg.Services {
+		protocol := svc.Protocol
+		if protocol == "" {
+			protocol = "tcp"
+		}
+		fmt.Printf("    %s: port=%d protocol=%s\n", name, svc.Port, protocol)
 	}
 	return nil
 }
