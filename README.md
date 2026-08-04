@@ -19,7 +19,7 @@ Provider-agnostic tunneling platform written in Go.
 | SSH | Implemented |
 | PortXD | Implemented |
 | Cloudflare | Implemented |
-| FRP | Planned |
+| FRP | Implemented |
 | Tailscale | Planned |
 
 ## Install
@@ -85,6 +85,9 @@ portx expose 3000 --provider ssh --ssh-host example.com --ssh-user deploy --ssh-
 
 # Cloudflare Quick Tunnel (no account needed)
 portx expose 8080 --provider cloudflare
+
+# FRP tunnel (requires FRP server)
+portx expose 8080 --provider frp --frp-server frp.example.com:7000 --frp-token YOUR_TOKEN --frp-proxy-type http --frp-subdomain myapp
 ```
 
 ### Expose Flags
@@ -92,7 +95,7 @@ portx expose 8080 --provider cloudflare
 | Flag | Description | Default |
 |------|-------------|---------|
 | `target` | Port number or service name | Required |
-| `--provider` | Tunnel provider (ssh, portxd, cloudflare) | portxd |
+| `--provider` | Tunnel provider (ssh, portxd, cloudflare, frp) | portxd |
 | `--local-addr` | Local service address (host:port) | localhost:{target} |
 | `--hostname` | Hostname for the tunnel | - |
 | `--ssh-host` | SSH server host | - |
@@ -102,6 +105,14 @@ portx expose 8080 --provider cloudflare
 | `--ssh-private-key` | SSH private key content (PEM format) | - |
 | `--ssh-use-agent` | Use SSH agent for authentication | false |
 | `--portxd-port` | PortXD server port | 7222 |
+| `--frp-server` | FRP server address (host:port) | - |
+| `--frp-token` | FRP authentication token | - |
+| `--frp-proxy-type` | FRP proxy type (tcp, http, https) | tcp |
+| `--frp-subdomain` | FRP subdomain for HTTP/HTTPS | - |
+| `--frp-custom-domain` | FRP custom domain for HTTP/HTTPS | - |
+| `--frp-remote-port` | FRP remote port for TCP (0 for auto-assign) | 0 |
+| `--frp-user` | FRP user prefix for proxy names | - |
+| `--frp-tls` | Enable TLS for FRP connection | false |
 | `--port` | Local port (deprecated: use positional argument) | - |
 
 ### List Flags
@@ -162,6 +173,8 @@ providers:
     enabled: true
   ssh:
     enabled: true
+  frp:
+    enabled: true
 ```
 
 **Security Note:** For SSH tunnels, prefer `--ssh-use-agent` or `--ssh-private-key` over `--ssh-password` when possible.
@@ -169,6 +182,8 @@ providers:
 **Security Note:** For SSH tunnels, prefer `--ssh-private-key` over `--ssh-password` when possible.
 
 **Security Note:** Cloudflare Quick Tunnels are ephemeral, have no uptime guarantee, and are subject to the [Cloudflare Online Services Terms of Use](https://www.cloudflare.com/website-terms/). They are intended for testing and development only.
+
+**Security Note:** FRP tunnels require a FRP server that you control or trust. The server address, token, and all traffic are visible to the FRP server operator. Always use TLS (`--frp-tls`) when connecting to untrusted networks.
 
 ## Architecture
 
@@ -180,7 +195,9 @@ cmd/portx
       ├── logger/        # slog wrapper
       ├── provider/      # Provider interface + registry
       │   ├── ssh/       # SSH provider
-      │   └── portxd/   # PortXD provider
+      │   ├── portxd/    # PortXD provider
+      │   ├── cloudflare/ # Cloudflare Quick Tunnel provider
+      │   └── frp/       # FRP provider
       ├── runtime/       # Composition root
       ├── sshutil/       # Shared SSH utilities
       ├── target/        # Target resolution (port, service, docker, k8s)
