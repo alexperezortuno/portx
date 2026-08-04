@@ -3,6 +3,7 @@ package provider
 var knownProviders = []string{
 	"ssh",
 	"portxd",
+	"cloudflare",
 }
 
 func KnownProviders() []string {
