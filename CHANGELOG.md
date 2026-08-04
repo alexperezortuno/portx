@@ -1,5 +1,8 @@
 # Changelog
 
+# v.1.2.0
+- Add new feature provider FRP
+
 # v1.0.4
 - add Cloudflare provider
 
