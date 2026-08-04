@@ -18,7 +18,7 @@ Provider-agnostic tunneling platform written in Go.
 |----------|--------|
 | SSH | Implemented |
 | PortXD | Implemented |
-| Cloudflare | Planned |
+| Cloudflare | Implemented |
 | FRP | Planned |
 | Tailscale | Planned |
 
@@ -74,6 +74,18 @@ portx expose frontend
 Target can be:
 - **Port number**: `portx expose 3000`
 - **Named service**: `portx expose frontend`
+
+Examples:
+```bash
+# Local tunnel (portxd, default)
+portx expose 3000
+
+# SSH reverse tunnel
+portx expose 3000 --provider ssh --ssh-host example.com --ssh-user deploy --ssh-use-agent
+
+# Cloudflare Quick Tunnel (no account needed)
+portx expose 8080 --provider cloudflare
+```
 
 ### Expose Flags
 
@@ -155,6 +167,8 @@ providers:
 **Security Note:** For SSH tunnels, prefer `--ssh-use-agent` or `--ssh-private-key` over `--ssh-password` when possible.
 
 **Security Note:** For SSH tunnels, prefer `--ssh-private-key` over `--ssh-password` when possible.
+
+**Security Note:** Cloudflare Quick Tunnels are ephemeral, have no uptime guarantee, and are subject to the [Cloudflare Online Services Terms of Use](https://www.cloudflare.com/website-terms/). They are intended for testing and development only.
 
 ## Architecture
 
