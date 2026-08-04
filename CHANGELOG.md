@@ -1,5 +1,8 @@
 # Changelog
 
+# v1.0.4
+- add Cloudflare provider
+
 ## v1.0.0
 - Initial release with basic functionality.
 
