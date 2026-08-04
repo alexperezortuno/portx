@@ -7,6 +7,7 @@ import (
 	"github.com/alexperezortuno/portx/internal/config"
 	"github.com/alexperezortuno/portx/internal/provider"
 	"github.com/alexperezortuno/portx/internal/provider/cloudflare"
+	"github.com/alexperezortuno/portx/internal/provider/frp"
 	"github.com/alexperezortuno/portx/internal/provider/portxd"
 	"github.com/alexperezortuno/portx/internal/provider/ssh"
 	"github.com/alexperezortuno/portx/internal/sshutil"
@@ -15,19 +16,27 @@ import (
 )
 
 type ExposeOptions struct {
-	Target      string
-	Provider    string
-	LocalAddr   string
-	RemoteAddr  string
-	Hostname    string
-	SSHUser     string
-	SSHHost     string
-	SSHPort     int
-	SSHPassword string
-	SSHPKey     string
-	SSHUseAgent bool
-	PortXDPort  int
-	PortFlag    int
+	Target          string
+	Provider        string
+	LocalAddr       string
+	RemoteAddr      string
+	Hostname        string
+	SSHUser         string
+	SSHHost         string
+	SSHPort         int
+	SSHPassword     string
+	SSHPKey         string
+	SSHUseAgent     bool
+	PortXDPort      int
+	PortFlag        int
+	FRPServer       string
+	FRPToken        string
+	FRPProxyType    string
+	FRPSubdomain    string
+	FRPCustomDomain string
+	FRPRemotePort   int
+	FRPUser         string
+	FRPTLS          bool
 }
 
 func NewExposeCommand() *cobra.Command {
@@ -54,6 +63,9 @@ Examples:
   # Expose via Cloudflare Quick Tunnel (no account needed)
   portx expose 8080 --provider cloudflare
 
+  # Expose via FRP tunnel (requires FRP server)
+  portx expose 8080 --provider frp --frp-server frp.example.com:7000 --frp-token YOUR_TOKEN --frp-proxy-type http --frp-subdomain myapp
+
   # Override service config
   portx expose frontend --provider cloudflare`,
 		Args: cobra.MaximumNArgs(1),
@@ -65,7 +77,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&opts.Provider, "provider", "", "Tunnel provider (ssh, portxd, cloudflare)")
+	cmd.Flags().StringVar(&opts.Provider, "provider", "", "Tunnel provider (ssh, portxd, cloudflare, frp)")
 	cmd.Flags().IntVar(&opts.PortFlag, "port", 0, "Local port (deprecated: use positional argument)")
 	cmd.Flags().StringVar(&opts.LocalAddr, "local-addr", "", "Local service address (host:port)")
 	cmd.Flags().StringVar(&opts.RemoteAddr, "tunnel-port", "", "Tunnel address on remote (host:port)")
@@ -77,6 +89,14 @@ Examples:
 	cmd.Flags().StringVar(&opts.SSHPKey, "ssh-private-key", "", "SSH private key content (PEM format)")
 	cmd.Flags().BoolVar(&opts.SSHUseAgent, "ssh-use-agent", false, "Use SSH agent for authentication")
 	cmd.Flags().IntVar(&opts.PortXDPort, "portxd-port", 7222, "PortXD server port")
+	cmd.Flags().StringVar(&opts.FRPServer, "frp-server", "", "FRP server address (host:port)")
+	cmd.Flags().StringVar(&opts.FRPToken, "frp-token", "", "FRP authentication token")
+	cmd.Flags().StringVar(&opts.FRPProxyType, "frp-proxy-type", "tcp", "FRP proxy type (tcp, http, https)")
+	cmd.Flags().StringVar(&opts.FRPSubdomain, "frp-subdomain", "", "FRP subdomain for HTTP/HTTPS")
+	cmd.Flags().StringVar(&opts.FRPCustomDomain, "frp-custom-domain", "", "FRP custom domain for HTTP/HTTPS")
+	cmd.Flags().IntVar(&opts.FRPRemotePort, "frp-remote-port", 0, "FRP remote port for TCP (0 for auto-assign)")
+	cmd.Flags().StringVar(&opts.FRPUser, "frp-user", "", "FRP user prefix for proxy names")
+	cmd.Flags().BoolVar(&opts.FRPTLS, "frp-tls", false, "Enable TLS for FRP connection")
 
 	return cmd
 }
@@ -133,8 +153,11 @@ func runExpose(cmd *cobra.Command, opts *ExposeOptions) error {
 	case "cloudflare":
 		p = cloudflare.New("cloudflare")
 
+	case "frp":
+		p = buildFRPProvider(opts)
+
 	default:
-		return fmt.Errorf("unsupported provider: %q (supported: ssh, portxd, cloudflare)", providerName)
+		return fmt.Errorf("unsupported provider: %q (supported: ssh, portxd, cloudflare, frp)", providerName)
 	}
 
 	if err := registry.Register(p); err != nil {
@@ -181,4 +204,26 @@ func buildSSHProvider(opts *ExposeOptions) provider.Provider {
 		UseAgent:   opts.SSHUseAgent,
 	}
 	return ssh.New("ssh", cfg)
+}
+
+func buildFRPProvider(opts *ExposeOptions) provider.Provider {
+	proxyType := frp.ProxyType(opts.FRPProxyType)
+	frpCfg, err := frp.ParseConfig(
+		opts.FRPServer,
+		opts.FRPToken,
+		proxyType,
+		opts.FRPSubdomain,
+		opts.FRPCustomDomain,
+		opts.FRPRemotePort,
+		opts.FRPUser,
+		0,
+		opts.FRPTLS,
+	)
+	if err != nil {
+		return nil
+	}
+
+	p := frp.New("frp")
+	p.SetConfig(frpCfg)
+	return p
 }
