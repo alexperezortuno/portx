@@ -6,6 +6,7 @@ import (
 
 	"github.com/alexperezortuno/portx/internal/config"
 	"github.com/alexperezortuno/portx/internal/provider"
+	"github.com/alexperezortuno/portx/internal/provider/cloudflare"
 	"github.com/alexperezortuno/portx/internal/provider/portxd"
 	"github.com/alexperezortuno/portx/internal/provider/ssh"
 	"github.com/alexperezortuno/portx/internal/sshutil"
@@ -50,8 +51,11 @@ Examples:
   # Expose with specific provider
   portx expose 3000 --provider ssh --ssh-host example.com --ssh-use-agent
 
+  # Expose via Cloudflare Quick Tunnel (no account needed)
+  portx expose 8080 --provider cloudflare
+
   # Override service config
-  portx expose frontend --provider cloudflare --hostname api.example.com`,
+  portx expose frontend --provider cloudflare`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
@@ -126,8 +130,11 @@ func runExpose(cmd *cobra.Command, opts *ExposeOptions) error {
 	case "ssh":
 		p = buildSSHProvider(opts)
 
+	case "cloudflare":
+		p = cloudflare.New("cloudflare")
+
 	default:
-		return fmt.Errorf("unsupported provider: %q (supported: ssh, portxd)", providerName)
+		return fmt.Errorf("unsupported provider: %q (supported: ssh, portxd, cloudflare)", providerName)
 	}
 
 	if err := registry.Register(p); err != nil {

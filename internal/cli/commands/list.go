@@ -52,6 +52,11 @@ func outputTable(tunnels []*tunnel.Tunnel) error {
 		}
 		remote := t.Config.RemoteAddr
 		if remote == "" {
+			if u, ok := t.Provider.(interface{ URL() string }); ok {
+				remote = u.URL()
+			}
+		}
+		if remote == "" {
 			remote = "-"
 		}
 		fmt.Printf("%-20s %-12s %-22s %-22s %s\n", t.Name, t.Provider.Name(), local, remote, t.Status)
@@ -65,11 +70,12 @@ func outputJSON(tunnels []*tunnel.Tunnel) error {
 		Provider string            `json:"provider"`
 		Config   map[string]string `json:"config"`
 		Status   string            `json:"status"`
+		URL      string            `json:"url,omitempty"`
 	}
 
 	out := make([]tunnelOut, len(tunnels))
 	for i, t := range tunnels {
-		out[i] = tunnelOut{
+		tun := tunnelOut{
 			Name:     t.Name,
 			Provider: t.Provider.Name(),
 			Config: map[string]string{
@@ -78,6 +84,10 @@ func outputJSON(tunnels []*tunnel.Tunnel) error {
 			},
 			Status: string(t.Status),
 		}
+		if u, ok := t.Provider.(interface{ URL() string }); ok {
+			tun.URL = u.URL()
+		}
+		out[i] = tun
 	}
 
 	data, err := json.MarshalIndent(out, "", "  ")
