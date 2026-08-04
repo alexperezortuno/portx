@@ -4,6 +4,7 @@ var knownProviders = []string{
 	"ssh",
 	"portxd",
 	"cloudflare",
+	"frp",
 }
 
 func KnownProviders() []string {

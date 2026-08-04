@@ -122,12 +122,14 @@ func TestKnownProviders(t *testing.T) {
 	assert.Contains(t, providers, "ssh")
 	assert.Contains(t, providers, "portxd")
 	assert.Contains(t, providers, "cloudflare")
+	assert.Contains(t, providers, "frp")
 }
 
 func TestIsKnown(t *testing.T) {
 	assert.True(t, IsKnown("ssh"))
 	assert.True(t, IsKnown("portxd"))
 	assert.True(t, IsKnown("cloudflare"))
+	assert.True(t, IsKnown("frp"))
 	assert.False(t, IsKnown(""))
 }
 
